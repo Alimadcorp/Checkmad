@@ -1,0 +1,1264 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MadCheckin | Event Management</title>
+    <link href="https://fonts.googleapis.com/css2?family=Ubuntu+Mono&family=Ubuntu:wght@400;700&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0d1117;
+            --panel: #161b22;
+            --border: #30363d;
+            --text: #c9d1d9;
+            --muted: #8b8b9e;
+            --accent: #a371f7;
+            --accent-glow: rgba(163, 113, 247, 0.2);
+            --success: #3fb950;
+            --mark-bg: rgba(255, 190, 0, 0.3);
+            --mark-fg: #ffdf5d;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Ubuntu', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .mono {
+            font-family: 'Ubuntu Mono', monospace;
+        }
+
+        h1,
+        h2,
+        h3 {
+            color: #fff;
+            margin-bottom: 1rem;
+        }
+
+        .container {
+            padding: 2rem;
+            max-width: 1000px;
+            margin: 0 auto;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        input,
+        button,
+        textarea,
+        select {
+            font-family: inherit;
+            background: var(--panel);
+            color: var(--text);
+            border: 2px solid var(--border);
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            font-size: 1rem;
+            transition: all 0.2s;
+            outline: none;
+        }
+
+        input:focus,
+        textarea:focus,
+        select:focus,
+        button:focus-visible {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 4px var(--accent-glow);
+        }
+
+        button {
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: var(--border);
+        }
+
+        button.primary {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+        }
+
+        button.primary:hover {
+            background: #8957e5;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .row {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        #nav {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 1rem;
+        }
+
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        #search-box {
+            width: 100%;
+            font-size: 1.5rem;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        #results-container {
+            position: relative;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #results {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            padding-right: 0.5rem;
+        }
+
+        .match {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--panel);
+            position: relative;
+            transition: transform 0.15s, opacity 0.15s;
+        }
+
+        .match.selected {
+            border-color: var(--accent);
+            background: var(--accent-glow);
+        }
+
+        .match.checked-in {
+            opacity: 0.6;
+            border-left: 4px solid var(--success);
+        }
+
+        .match-badge {
+            font-weight: bold;
+            color: var(--accent);
+            margin-right: 0.75rem;
+            font-size: 1.1rem;
+            min-width: 1.5rem;
+        }
+
+        .match-content {
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .match-key {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--accent);
+            margin-bottom: 0.25rem;
+        }
+
+        .match-kv {
+            font-size: 0.9rem;
+            color: var(--muted);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .match-action {
+            background: var(--border);
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 1rem;
+            font-weight: bold;
+        }
+
+        /* Instantiated Flat Green Box Flash */
+        .instantiated-flash {
+            position: absolute;
+            background: var(--success);
+            border-radius: 8px;
+            pointer-events: none;
+            z-index: 90;
+            opacity: 0.9;
+            transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+        }
+
+        mark {
+            background: var(--mark-bg);
+            color: var(--mark-fg);
+            border-radius: 2px;
+            padding: 0 2px;
+        }
+
+        .status-bar {
+            margin-top: 1rem;
+            display: flex;
+            justify-content: space-between;
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+
+        .modal-content {
+            background: var(--bg);
+            padding: 2rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            min-width: 450px;
+            max-width: 90%;
+            max-height: 90%;
+            overflow-y: auto;
+        }
+
+        .kv-pair {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+            padding: 0.5rem 0;
+        }
+
+        .kv-key {
+            width: 140px;
+            font-weight: bold;
+            color: var(--accent);
+        }
+
+        .kv-val {
+            flex: 1;
+            word-break: break-word;
+        }
+
+        .shortcut-badge {
+            background: var(--border);
+            color: #fff;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Ubuntu Mono', monospace;
+            font-size: 0.85rem;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <div id="nav" class="hidden">
+            <button onclick="navigate('home')">Home</button>
+            <button id="nav-context" onclick="navigate('context')" class="hidden">Contexts</button>
+            <button id="nav-switch-ctx" onclick="openContextSwitcher()" class="hidden">Switch Context (Ctrl+J)</button>
+            <button id="nav-settings" onclick="openSettingsDash()">Settings (Ctrl+,)</button>
+            <div style="flex: 1"></div>
+            <span id="sync-status" style="align-self: center; font-size: 0.9rem; color: var(--muted);"></span>
+        </div>
+
+        <div id="view-home" class="view">
+            <h1>Home</h1>
+
+            <div class="card">
+                <h2>Madstore Config</h2>
+                <div class="row" style="margin-bottom: 1rem;">
+                    <input type="checkbox" id="cfg-enabled" style="width: auto;">
+                    <label for="cfg-enabled">Enable Sync</label>
+                </div>
+                <div class="row">
+                    <input type="text" id="cfg-url" placeholder="API URL" style="flex:2">
+                    <input type="text" id="cfg-key" placeholder="Storage Key" style="flex:1">
+                    <input type="password" id="cfg-master" placeholder="Master Password" style="flex:1">
+                    <button class="primary" onclick="saveConfig()">Save</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>Events</h2>
+                <div class="row" style="margin-bottom: 1rem;">
+                    <input type="text" id="new-event-name" placeholder="New Event Name (e.g., Haven Lahore 2026)"
+                        style="flex:1" onkeydown="if(event.key==='Enter') addNewEvent()">
+                    <button class="primary" onclick="addNewEvent()">Create Event</button>
+                </div>
+                <div id="events-list"></div>
+            </div>
+        </div>
+
+        <!-- View: Contexts -->
+        <div id="view-context" class="view hidden">
+            <h1 id="ctx-event-title">Event Contexts</h1>
+            <div class="card">
+                <h2>Create New Context</h2>
+                <div class="row" style="margin-bottom: 1rem;">
+                    <input type="text" id="ctx-name" placeholder="Context Name (e.g., Saturday Registrations)"
+                        style="flex: 1">
+                    <input type="file" id="ctx-file" accept=".csv" style="flex: 1">
+                </div>
+                <div class="row" style="margin-bottom: 1rem;">
+                    <input type="datetime-local" id="ctx-start" style="flex: 1">
+                    <input type="datetime-local" id="ctx-end" style="flex: 1">
+                </div>
+                <input type="text" id="ctx-desc" placeholder="Description (Optional)"
+                    style="width: 100%; margin-bottom: 1rem;">
+                <button class="primary" onclick="createContext()">Parse & Create Context</button>
+            </div>
+            <div id="contexts-list"></div>
+        </div>
+
+        <!-- View: Main Check-in -->
+        <div id="view-checkin" class="view hidden" style="flex: 1; display: flex; flex-direction: column;">
+            <div class="row" style="margin-bottom: 0.5rem; justify-content: space-between; align-items: center;">
+                <h2 id="ci-title" style="margin: 0;">Check-in</h2>
+                <div class="row" style="gap: 1.5rem; align-items: center;">
+                    <span id="ci-top-stats" class="mono"
+                        style="font-size: 1.25rem; font-weight: bold; color: var(--accent);">0 / 0</span>
+                    <label
+                        style="font-size: 0.85rem; color: var(--muted); cursor: pointer; display: flex; align-items: center; gap: 0.4rem; user-select: none;">
+                        <input type="checkbox" id="cfg-autodelete" style="width: auto;"
+                            onchange="toggleAutoDelete(this.checked)"> Auto-clear query
+                    </label>
+                </div>
+            </div>
+            <div class="row" style="margin-bottom: 1rem;">
+                <input type="text" id="search-box" class="mono" placeholder="Type to search... (CTRL+K to focus)"
+                    autocomplete="off" spellcheck="false">
+            </div>
+            <div id="results-container">
+                <div id="results"></div>
+            </div>
+            <div class="status-bar">
+                <span id="ci-mode">Mode: Pending Only (Ctrl+Enter to toggle)</span>
+                <span id="ci-stats"></span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Details Modal -->
+    <div id="modal" class="modal hidden" onclick="if(event.target===this) closeModal('modal')">
+        <div class="modal-content">
+            <h2>User Details</h2>
+            <div id="modal-body"></div>
+            <div class="form-group" style="margin-top: 1rem;">
+                <label style="font-weight: bold; color: var(--accent);">Note</label>
+                <textarea id="modal-note-input" rows="3" placeholder="Add entry note..."></textarea>
+            </div>
+            <button id="modal-close-btn" class="primary" style="margin-top: 1rem; width: 100%;"
+                onclick="closeModal('modal')">Close (Enter)</button>
+        </div>
+    </div>
+
+    <!-- Add Note Line Dialog (Ctrl+N) -->
+    <div id="modal-note-line" class="modal hidden" onclick="if(event.target===this) closeModal('modal-note-line')">
+        <div class="modal-content">
+            <h2>Add Note Line</h2>
+            <div class="form-group">
+                <label id="note-line-target-user" style="color: var(--accent); font-weight: bold;"></label>
+                <input type="text" id="note-line-input" placeholder="Type line to append to note..." autocomplete="off">
+            </div>
+            <div class="row">
+                <button class="primary" style="flex:1" onclick="saveNoteLine()">Append Line (Enter)</button>
+                <button style="flex:1" onclick="closeModal('modal-note-line')">Cancel (Esc)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modify Specific Property Dialog (Ctrl+E) -->
+    <div id="modal-edit-property" class="modal hidden"
+        onclick="if(event.target===this) closeModal('modal-edit-property')">
+        <div class="modal-content">
+            <h2>Modify Property</h2>
+            <div class="form-group">
+                <label id="edit-prop-target-user" style="color: var(--accent); font-weight: bold;"></label>
+                <select id="edit-prop-select" onchange="onPropSelectChange()"></select>
+                <input type="text" id="edit-prop-val-input" placeholder="Property value..." style="margin-top: 0.5rem;"
+                    autocomplete="off">
+            </div>
+            <div class="row">
+                <button class="primary" style="flex:1" onclick="savePropertyValue()">Save (Enter)</button>
+                <button style="flex:1" onclick="closeModal('modal-edit-property')">Cancel (Esc)</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Dashboard Modal (Ctrl + ,) -->
+    <div id="modal-settings-dash" class="modal hidden"
+        onclick="if(event.target===this) closeModal('modal-settings-dash')">
+        <div class="modal-content" style="min-width: 600px;">
+            <h2>Settings & Field Shortcuts</h2>
+
+            <div class="card">
+                <h3>Add New Property to All Records</h3>
+                <div class="row" style="margin-bottom: 0.5rem;">
+                    <input type="text" id="new-prop-name" placeholder="Property Name (e.g., Table No)" style="flex:1">
+                    <input type="text" id="new-prop-default" placeholder="Default Value (e.g., T-1)" style="flex:1">
+                    <button class="primary" onclick="assignNewPropertyToAll()">Assign to All</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Digit Shortcuts (Ctrl + 1..9 to Quick Edit Field)</h3>
+                <div id="digit-shortcuts-list" style="display: flex; flex-direction: column; gap: 0.5rem;"></div>
+
+                <button class="primary" style="padding: 0.5rem 1rem; margin-top: 10px; width: 100%;"
+                    onclick="saveDigitShortcuts()">Save</button>
+            </div>
+
+            <div class="card">
+                <h3>Shortcuts Quick Reference</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; font-size: 0.9rem;">
+                    <div><span class="shortcut-badge">Enter</span> Check in / out user</div>
+                    <div><span class="shortcut-badge">Ctrl+Enter</span> Toggle Pending / All mode</div>
+                    <div><span class="shortcut-badge">Shift+Enter</span> View full user details</div>
+                    <div><span class="shortcut-badge">Ctrl+.</span> Add note line to user</div>
+                    <div><span class="shortcut-badge">Ctrl+E</span> Edit user property</div>
+                    <div><span class="shortcut-badge">Ctrl+1..9</span> Quick edit mapped property</div>
+                    <div><span class="shortcut-badge">Ctrl+J</span> Quick switch context</div>
+                    <div><span class="shortcut-badge">Ctrl+,</span> Toggle Settings Dashboard</div>
+                </div>
+            </div>
+
+            <button class="primary" style="width: 100%; margin-top: 1rem;"
+                onclick="closeModal('modal-settings-dash')">Close Dashboard</button>
+        </div>
+    </div>
+
+    <!-- Context Switcher Modal (Ctrl + J) -->
+    <div id="modal-context-switcher" class="modal hidden"
+        onclick="if(event.target===this) closeModal('modal-context-switcher')">
+        <div class="modal-content">
+            <h2>Quick Switch Context</h2>
+            <div id="context-switcher-list"
+                style="display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 1rem;"></div>
+            <div class="form-group">
+                <input type="number" id="context-number-input" placeholder="Enter Context Number (1..9)" min="1"
+                    autocomplete="off">
+            </div>
+            <div class="row">
+                <button class="primary" style="flex:1" onclick="switchContextByInput()">Switch (Enter)</button>
+                <button style="flex:1" onclick="closeModal('modal-context-switcher')">Cancel (Esc)</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'mad_checkin_store';
+        let db = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {
+            config: { url: 'https://kv.alimad.co', key: '', master: '', enabled: false, autoDelete: false },
+            lastSession: null,
+            events: []
+        };
+
+        let state = {
+            eventId: null,
+            contextId: null,
+            searchMode: 'pending',
+            matches: [],
+            selectedIndex: 0,
+            history: [],
+            historyPtr: -1,
+            syncing: false,
+            animating: false
+        };
+
+        function saveLocal() {
+            if (state.eventId && state.contextId) {
+                db.lastSession = { eventId: state.eventId, contextId: state.contextId };
+            }
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+            syncUp();
+        }
+
+        async function syncUp() {
+            if (!db.config.enabled || !db.config.key || !db.config.master || state.syncing) return;
+            state.syncing = true;
+            document.getElementById('sync-status').textContent = 'Syncing';
+            try {
+                let url = db.config.url.replace(/\/$/, '');
+                await fetch(`${url}/set`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key: db.config.key, master: db.config.master, value: db.events })
+                });
+                document.getElementById('sync-status').textContent = 'Synced';
+            } catch (e) {
+                document.getElementById('sync-status').textContent = 'Sync Failed';
+            }
+            state.syncing = false;
+        }
+
+        async function syncDown() {
+            if (!db.config.enabled || !db.config.key || !db.config.master || state.syncing) return;
+            state.syncing = true;
+            document.getElementById('sync-status').textContent = 'Syncing';
+            try {
+                let url = db.config.url.replace(/\/$/, '');
+                let res = await fetch(`${url}/get`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ key: db.config.key, master: db.config.master })
+                });
+                let data = await res.json();
+                if (data.value) {
+                    db.events = data.value;
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
+                    document.getElementById('sync-status').textContent = 'Synced';
+                    refreshCurrentView();
+                }
+            } catch (e) { }
+            state.syncing = false;
+        }
+
+        function scrollToTop() {
+            window.scrollTo({
+                top: 0,
+                left: 0,
+                behavior: 'smooth'
+            });
+        }
+
+        function navigate(view) {
+            document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+            document.getElementById('nav').classList.remove('hidden');
+
+            if (view === 'home') {
+                document.getElementById('view-home').classList.remove('hidden');
+                document.getElementById('nav-context').classList.add('hidden');
+                document.getElementById('nav-settings').classList.add('hidden');
+                document.getElementById('nav-switch-ctx').classList.add('hidden');
+                state.eventId = null; state.contextId = null;
+                renderEvents();
+            } else if (view === 'context') {
+                document.getElementById('view-context').classList.remove('hidden');
+                document.getElementById('nav-context').classList.remove('hidden');
+                document.getElementById('nav-settings').classList.add('hidden');
+                document.getElementById('nav-switch-ctx').classList.remove('hidden');
+                state.contextId = null;
+                renderContexts();
+            } else if (view === 'checkin') {
+                document.getElementById('view-checkin').classList.remove('hidden');
+                document.getElementById('nav-settings').classList.remove('hidden');
+                document.getElementById('nav-context').classList.remove('hidden');
+                document.getElementById('nav-switch-ctx').classList.remove('hidden');
+                let ctx = getContext();
+                document.getElementById('ci-title').textContent = ctx.name;
+                document.getElementById('cfg-autodelete').checked = !!db.config.autoDelete;
+                document.getElementById('search-box').value = '';
+                state.history = []; state.historyPtr = -1;
+                saveLocal();
+                renderSearch();
+                setTimeout(() => document.getElementById('search-box').focus(), 50);
+            }
+        }
+
+        function refreshCurrentView() {
+            if (state.contextId) renderSearch();
+            else if (state.eventId) renderContexts();
+            else renderEvents();
+        }
+
+        function loadConfigUI() {
+            document.getElementById('cfg-enabled').checked = db.config.enabled;
+            document.getElementById('cfg-url').value = db.config.url || 'https://kv.alimad.co';
+            document.getElementById('cfg-key').value = db.config.key || '';
+            document.getElementById('cfg-master').value = db.config.master || '';
+        }
+
+        function saveConfig() {
+            db.config.enabled = document.getElementById('cfg-enabled').checked;
+            db.config.url = document.getElementById('cfg-url').value;
+            db.config.key = document.getElementById('cfg-key').value;
+            db.config.master = document.getElementById('cfg-master').value;
+            saveLocal();
+            if (db.config.enabled) syncDown();
+        }
+
+        function toggleAutoDelete(val) {
+            db.config.autoDelete = val;
+            saveLocal();
+        }
+
+        function addNewEvent() {
+            let name = document.getElementById('new-event-name').value.trim();
+            if (!name) return;
+            db.events.push({ id: Date.now().toString(), name, contexts: [] });
+            document.getElementById('new-event-name').value = '';
+            saveLocal();
+            renderEvents();
+        }
+
+        function renderEvents() {
+            const list = document.getElementById('events-list');
+            list.innerHTML = '';
+            db.events.forEach(ev => {
+                let el = document.createElement('div');
+                el.className = 'card row';
+                el.style.marginBottom = '0.5rem';
+                el.innerHTML = `<h3 style="margin:0; flex:1">${escapeHTML(ev.name)}</h3>
+                            <button onclick="openEvent('${ev.id}')">Manage Contexts</button>
+                            <button style="background:var(--border)" onclick="deleteEvent('${ev.id}')">Delete</button>`;
+                list.appendChild(el);
+            });
+        }
+
+        function openEvent(id) { state.eventId = id; navigate('context'); }
+        function deleteEvent(id) {
+            if (confirm('Delete event?')) { db.events = db.events.filter(e => e.id !== id); saveLocal(); renderEvents(); }
+        }
+
+        function getEvent() { return db.events.find(e => e.id === state.eventId); }
+        function getContext() {
+            let ctx = getEvent()?.contexts.find(c => c.id === state.contextId);
+            if (ctx) {
+                if (!ctx.notes) ctx.notes = {};
+                if (!ctx.timestamps) ctx.timestamps = {};
+                if (!ctx.fieldShortcuts) ctx.fieldShortcuts = {};
+            }
+            return ctx;
+        }
+
+        function renderContexts() {
+            let ev = getEvent();
+            if (!ev) return navigate('home');
+            document.getElementById('ctx-event-title').textContent = `Contexts: ${ev.name}`;
+            const list = document.getElementById('contexts-list');
+            list.innerHTML = '';
+            ev.contexts.forEach((ctx, idx) => {
+                let el = document.createElement('div');
+                el.className = 'card row';
+                el.style.marginBottom = '0.5rem';
+                el.innerHTML = `<div style="flex:1">
+                                <h3 style="margin:0; color:var(--accent)">[${idx + 1}] ${escapeHTML(ctx.name)}</h3>
+                                <div style="font-size:0.9rem; color:var(--muted)">${ctx.data.length} records | ${ctx.checkedIn.length} checked in</div>
+                            </div>
+                            <button class="primary" onclick="openContext('${ctx.id}')">Enter Check-in</button>
+                            <button style="background:var(--border)" onclick="deleteContext('${ctx.id}')">Delete</button>`;
+                list.appendChild(el);
+            });
+        }
+
+        function createContext() {
+            let name = document.getElementById('ctx-name').value;
+            let file = document.getElementById('ctx-file').files[0];
+            if (!name || !file) return alert('Name and CSV file are required.');
+
+            let reader = new FileReader();
+            reader.onload = e => {
+                let text = e.target.result;
+                let lines = text.split('\n').map(l => l.trim()).filter(l => l);
+                if (lines.length < 2) return alert('CSV must have headers and data.');
+
+                let headers = lines[0].split(',').map(s => s.trim());
+                let data = [];
+                for (let i = 1; i < lines.length; i++) {
+                    let row = lines[i].split(',').map(s => s.trim());
+                    let obj = {};
+                    headers.forEach((h, idx) => obj[h] = row[idx] || '');
+                    data.push(obj);
+                }
+
+                getEvent().contexts.push({
+                    id: Date.now().toString(),
+                    name,
+                    desc: document.getElementById('ctx-desc').value,
+                    start: document.getElementById('ctx-start').value,
+                    end: document.getElementById('ctx-end').value,
+                    headers,
+                    data,
+                    checkedIn: [],
+                    notes: {},
+                    timestamps: {},
+                    fieldShortcuts: {}
+                });
+                saveLocal();
+                renderContexts();
+            };
+            reader.readAsText(file);
+        }
+
+        function openContext(id) { state.contextId = id; navigate('checkin'); }
+        function deleteContext(id) {
+            if (confirm('Delete context?')) { getEvent().contexts = getEvent().contexts.filter(c => c.id !== id); saveLocal(); renderContexts(); }
+        }
+
+        function escapeHTML(str) {
+            return String(str || '').replace(/[&<>'"]/g, t => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[t]);
+        }
+
+        function highlight(text, query) {
+            let safeText = escapeHTML(text);
+            if (!query) return safeText;
+            let safeQuery = escapeHTML(query);
+            let regex = new RegExp(`(${safeQuery})`, 'gi');
+            return safeText.replace(regex, '<mark>$1</mark>');
+        }
+
+        function renderSearch() {
+            let ctx = getContext();
+            if (!ctx) return;
+            let query = document.getElementById('search-box').value.toLowerCase().trim();
+            let keyCol = ctx.headers[0];
+
+            let matches = [];
+            let hiddenCheckedIn = 0;
+
+            ctx.data.forEach(row => {
+                let keyVal = row[keyCol];
+                let isCheckedIn = ctx.checkedIn.includes(keyVal);
+                if (state.searchMode === 'pending' && isCheckedIn) {
+                    hiddenCheckedIn++;
+                    return;
+                }
+
+                let fullStr = (Object.values(row).join(' ') + ' ' + (ctx.notes[keyVal] || '')).toLowerCase();
+                if (!query || fullStr.includes(query)) {
+                    matches.push({ row, isCheckedIn, note: ctx.notes[keyVal] || '', checkInTime: ctx.timestamps[keyVal] });
+                }
+            });
+
+            matches.sort((a, b) => {
+                if (state.searchMode === 'all' && a.isCheckedIn !== b.isCheckedIn) {
+                    return a.isCheckedIn ? 1 : -1;
+                }
+                if (query) {
+                    let aStarts = String(a.row[keyCol]).toLowerCase().startsWith(query);
+                    let bStarts = String(b.row[keyCol]).toLowerCase().startsWith(query);
+                    if (aStarts && !bStarts) return -1;
+                    if (!aStarts && bStarts) return 1;
+                }
+                return 0;
+            });
+
+            state.matches = matches;
+            state.selectedIndex = Math.min(state.selectedIndex, Math.max(0, matches.length - 1));
+
+            const list = document.getElementById('results');
+            list.innerHTML = '';
+
+            matches.forEach((m, idx) => {
+                let el = document.createElement('div');
+                el.className = `match ${idx === state.selectedIndex ? 'selected' : ''} ${m.isCheckedIn ? 'checked-in' : ''}`;
+                el.id = `match-${idx}`;
+
+                let kvStr = Object.keys(m.row)
+                    .filter(k => k !== keyCol)
+                    .map(k => `<span>${escapeHTML(k)}: ${highlight(m.row[k], query)}</span>`)
+                    .join(' &nbsp;|&nbsp; ');
+
+                if (m.note) {
+                    kvStr += ` &nbsp;|&nbsp; <span style="color:var(--accent);">[Note: ${highlight(m.note, query)}]</span>`;
+                }
+                if (m.isCheckedIn && m.checkInTime) {
+                    kvStr += ` &nbsp;|&nbsp; <span style="color:var(--success);">[Checked-in: ${escapeHTML(m.checkInTime)}]</span>`;
+                }
+
+                let keyNumber = idx < 9 ? `<span class="match-badge mono">${idx + 1}</span>` : `<span class="match-badge"></span>`;
+
+                el.innerHTML = `
+                ${keyNumber}
+                <div class="match-content">
+                    <div class="match-key">${highlight(m.row[keyCol], query)}</div>
+                    <div class="match-kv">${kvStr}</div>
+                </div>
+                <div class="match-action" onclick="showDetails(${idx})">i</div>
+            `;
+                list.appendChild(el);
+            });
+
+            if (state.searchMode === 'pending' && hiddenCheckedIn > 0) {
+                let info = document.createElement('div');
+                info.style.textAlign = 'center'; info.style.padding = '1rem'; info.style.color = 'var(--muted)';
+                info.textContent = `+ ${hiddenCheckedIn} matches in checked-in ppl`;
+                list.appendChild(info);
+            }
+
+            let statText = `${ctx.checkedIn.length} / ${ctx.data.length} Checked In`;
+            document.getElementById('ci-top-stats').textContent = statText;
+            document.getElementById('ci-stats').textContent = statText;
+
+            let selectedEl = document.getElementById(`match-${state.selectedIndex}`);
+            if (selectedEl) selectedEl.scrollIntoView({ block: 'nearest' });
+        }
+
+        function toggleCheckIn(index) {
+            let ctx = getContext();
+            let match = state.matches[index];
+            if (!match) return;
+
+            let keyVal = match.row[ctx.headers[0]];
+            let targetEl = document.getElementById(`match-${index}`);
+            let container = document.getElementById('results-container');
+
+            // Instantiated flat green box without text
+            if (targetEl && container) {
+                let rect = targetEl.getBoundingClientRect();
+                let containerRect = container.getBoundingClientRect();
+
+                let flashBox = document.createElement('div');
+                flashBox.className = 'instantiated-flash';
+                flashBox.style.top = (rect.top - containerRect.top) + 'px';
+                flashBox.style.left = (rect.left - containerRect.left) + 'px';
+                flashBox.style.width = rect.width + 'px';
+                flashBox.style.height = rect.height + 'px';
+
+                container.appendChild(flashBox);
+
+                setTimeout(() => {
+                    flashBox.style.opacity = '0';
+                    flashBox.style.transform = 'scale(1.1, 2)';
+                }, 50);
+
+                setTimeout(() => {
+                    if (flashBox.parentNode) flashBox.parentNode.removeChild(flashBox);
+                }, 550);
+            }
+
+            // Upon flash initiation, clear query
+            document.getElementById('search-box').value = '';
+
+            if (!ctx.timestamps) ctx.timestamps = {};
+
+            if (match.isCheckedIn) {
+                ctx.checkedIn = ctx.checkedIn.filter(k => k !== keyVal);
+                let prevTime = ctx.timestamps[keyVal];
+                delete ctx.timestamps[keyVal];
+                state.history = state.history.slice(0, state.historyPtr + 1);
+                state.history.push({ type: 'out', key: keyVal, time: prevTime });
+                state.historyPtr++;
+            } else {
+                let formattedTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                ctx.checkedIn.push(keyVal);
+                ctx.timestamps[keyVal] = formattedTime;
+                state.history = state.history.slice(0, state.historyPtr + 1);
+                state.history.push({ type: 'in', key: keyVal, time: formattedTime });
+                state.historyPtr++;
+            }
+
+            saveLocal();
+            state.selectedIndex = 0;
+            renderSearch();
+        }
+
+        function undo() {
+            if (state.historyPtr < 0 || !state.contextId) return;
+            let action = state.history[state.historyPtr--];
+            let ctx = getContext();
+            if (!ctx.timestamps) ctx.timestamps = {};
+
+            if (action.type === 'in') {
+                ctx.checkedIn = ctx.checkedIn.filter(k => k !== action.key);
+                delete ctx.timestamps[action.key];
+            } else if (action.type === 'out') {
+                if (!ctx.checkedIn.includes(action.key)) ctx.checkedIn.push(action.key);
+                if (action.time) ctx.timestamps[action.key] = action.time;
+            }
+            saveLocal(); renderSearch();
+        }
+
+        function redo() {
+            if (state.historyPtr >= state.history.length - 1 || !state.contextId) return;
+            let action = state.history[++state.historyPtr];
+            let ctx = getContext();
+            if (!ctx.timestamps) ctx.timestamps = {};
+
+            if (action.type === 'in') {
+                if (!ctx.checkedIn.includes(action.key)) ctx.checkedIn.push(action.key);
+                if (action.time) ctx.timestamps[action.key] = action.time;
+            } else if (action.type === 'out') {
+                ctx.checkedIn = ctx.checkedIn.filter(k => k !== action.key);
+                delete ctx.timestamps[action.key];
+            }
+            saveLocal(); renderSearch();
+        }
+
+        // --- Details & Modals ---
+        function showDetails(index) {
+            let match = typeof index === 'number' ? state.matches[index] : index;
+            if (!match) return;
+            let ctx = getContext();
+            let keyVal = match.row[ctx.headers[0]];
+
+            let html = '';
+            if (ctx.checkedIn.includes(keyVal) && ctx.timestamps[keyVal]) {
+                html += `<div class="kv-pair"><div class="kv-key" style="color:var(--success);">Checked In At</div><div class="kv-val" style="font-weight:bold;">${escapeHTML(ctx.timestamps[keyVal])}</div></div>`;
+            }
+            for (let [k, v] of Object.entries(match.row)) {
+                html += `<div class="kv-pair"><div class="kv-key">${escapeHTML(k)}</div><div class="kv-val">${escapeHTML(v)}</div></div>`;
+            }
+            document.getElementById('modal-body').innerHTML = html;
+
+            let noteArea = document.getElementById('modal-note-input');
+            noteArea.value = ctx.notes[keyVal] || '';
+            noteArea.oninput = () => {
+                ctx.notes[keyVal] = noteArea.value;
+                saveLocal();
+                renderSearch();
+            };
+
+            openModal('modal', 'modal-close-btn');
+        }
+
+        function openModal(id, focusId) {
+            document.getElementById(id).classList.remove('hidden');
+            if (focusId) {
+                setTimeout(() => document.getElementById(focusId)?.focus(), 50);
+            }
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+            if (state.contextId) {
+                document.getElementById('search-box').focus();
+            }
+        }
+
+        // --- Note Line Dialog (Ctrl+N) ---
+        function openNoteLineDialog() {
+            let match = state.matches[state.selectedIndex];
+            if (!match) return;
+            let ctx = getContext();
+            let keyVal = match.row[ctx.headers[0]];
+            document.getElementById('note-line-target-user').textContent = `Append Note: ${keyVal}`;
+            document.getElementById('note-line-input').value = '';
+            openModal('modal-note-line', 'note-line-input');
+        }
+
+        function saveNoteLine() {
+            let match = state.matches[state.selectedIndex];
+            if (!match) return closeModal('modal-note-line');
+            let ctx = getContext();
+            let keyVal = match.row[ctx.headers[0]];
+            let line = document.getElementById('note-line-input').value.trim();
+            if (line) {
+                let existing = ctx.notes[keyVal] || '';
+                ctx.notes[keyVal] = existing ? (existing + '\n' + line) : line;
+                saveLocal();
+                renderSearch();
+            }
+            closeModal('modal-note-line');
+        }
+
+        // --- Modify Specific Property (Ctrl+E) & Shift+1..9 ---
+        function openModifyPropertyDialog(propName) {
+            let match = state.matches[state.selectedIndex];
+            if (!match) return;
+            let ctx = getContext();
+            let keyVal = match.row[ctx.headers[0]];
+            document.getElementById('edit-prop-target-user').textContent = `User: ${keyVal}`;
+
+            let select = document.getElementById('edit-prop-select');
+            select.innerHTML = '';
+            ctx.headers.forEach(h => {
+                let opt = document.createElement('option');
+                opt.value = h;
+                opt.textContent = h;
+                select.appendChild(opt);
+            });
+
+            if (propName && ctx.headers.includes(propName)) {
+                select.value = propName;
+            }
+
+            onPropSelectChange();
+            openModal('modal-edit-property', 'edit-prop-val-input');
+        }
+
+        function onPropSelectChange() {
+            let match = state.matches[state.selectedIndex];
+            if (!match) return;
+            let select = document.getElementById('edit-prop-select');
+            let propKey = select.value;
+            document.getElementById('edit-prop-val-input').value = match.row[propKey] || '';
+        }
+
+        function savePropertyValue() {
+            let match = state.matches[state.selectedIndex];
+            if (!match) return closeModal('modal-edit-property');
+            let select = document.getElementById('edit-prop-select');
+            let propKey = select.value;
+            let newVal = document.getElementById('edit-prop-val-input').value;
+
+            match.row[propKey] = newVal;
+            saveLocal();
+            renderSearch();
+            closeModal('modal-edit-property');
+        }
+
+        // --- Settings Dashboard & Digit Shortcut Assignment (Ctrl + ,) ---
+        function openSettingsDash() {
+            let ctx = getContext();
+            let list = document.getElementById('digit-shortcuts-list');
+            list.innerHTML = '';
+
+            if (!ctx) {
+                list.innerHTML = '<div style="color:var(--muted)">Open a context first to assign digit shortcuts.</div>';
+            } else {
+                for (let i = 1; i <= 9; i++) {
+                    let current = ctx.fieldShortcuts[i] || '';
+                    let row = document.createElement('div');
+                    row.className = 'row';
+                    row.innerHTML = `
+                    <span class="shortcut-badge" style="width:70px; text-align:center;">Shift+${i}</span>
+                    <select id="shortcut-digit-${i}" style="flex:1">
+                        <option value="">-- Unassigned --</option>
+                        ${ctx.headers.map(h => `<option value="${escapeHTML(h)}" ${h === current ? 'selected' : ''}>${escapeHTML(h)}</option>`).join('')}
+                    </select>
+                `;
+                    list.appendChild(row);
+                }
+            }
+
+            openModal('modal-settings-dash');
+        }
+
+        function saveDigitShortcuts() {
+            let ctx = getContext();
+            if (!ctx) return;
+            for (let i = 1; i <= 9; i++) {
+                let val = document.getElementById(`shortcut-digit-${i}`).value;
+                if (val) ctx.fieldShortcuts[i] = val;
+                else delete ctx.fieldShortcuts[i];
+                saveLocal();
+            }
+        }
+
+        function assignNewPropertyToAll() {
+            let ctx = getContext();
+            if (!ctx) return alert('Open a context first.');
+            let propName = document.getElementById('new-prop-name').value.trim();
+            let defaultVal = document.getElementById('new-prop-default').value;
+            if (!propName) return alert('Property name is required.');
+
+            if (!ctx.headers.includes(propName)) ctx.headers.push(propName);
+            ctx.data.forEach(row => {
+                if (row[propName] === undefined) row[propName] = defaultVal;
+            });
+
+            document.getElementById('new-prop-name').value = '';
+            document.getElementById('new-prop-default').value = '';
+            saveLocal();
+            renderSearch();
+            openSettingsDash();
+        }
+
+        // --- Quick Context Switcher (Ctrl + J) ---
+        function openContextSwitcher() {
+            let ev = getEvent();
+            if (!ev) return alert('Open an event first.');
+            let list = document.getElementById('context-switcher-list');
+            list.innerHTML = '';
+            ev.contexts.forEach((c, idx) => {
+                let item = document.createElement('div');
+                item.className = 'row card';
+                item.style.padding = '0.75rem';
+                item.style.marginBottom = '0';
+                item.innerHTML = `<span class="shortcut-badge">[${idx + 1}]</span> <strong>${escapeHTML(c.name)}</strong>`;
+                item.onclick = () => { openContext(c.id); closeModal('modal-context-switcher'); };
+                list.appendChild(item);
+            });
+            document.getElementById('context-number-input').value = '';
+            openModal('modal-context-switcher', 'context-number-input');
+        }
+
+        function switchContextByInput() {
+            let ev = getEvent();
+            if (!ev) return;
+            let num = parseInt(document.getElementById('context-number-input').value);
+            if (num >= 1 && num <= ev.contexts.length) {
+                openContext(ev.contexts[num - 1].id);
+                closeModal('modal-context-switcher');
+            } else {
+                alert('Invalid context number.');
+            }
+        }
+
+        // --- Keyboard Event Handling ---
+        document.getElementById('search-box').addEventListener('input', () => {
+            state.selectedIndex = 0;
+            renderSearch();
+        });
+
+        document.getElementById('search-box').addEventListener('keydown', e => {
+            const isNumpadDigit = e.code.startsWith('Numpad') && e.code >= 'Numpad1' && e.code <= 'Numpad9';
+
+            if (isNumpadDigit && !e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey) {
+                let numericValue = parseInt(e.code.slice(-1));
+                let targetIdx = numericValue - 1;
+                e.preventDefault();
+                if (targetIdx < state.matches.length) state.selectedIndex = targetIdx;
+                renderSearch();
+                return;
+            }
+
+            if (e.ctrlKey && e.key >= '1' && e.key <= '9') {
+                let ctx = getContext();
+                let digit = e.key;
+                if (ctx && ctx.fieldShortcuts[digit]) {
+                    e.preventDefault();
+                    openModifyPropertyDialog(ctx.fieldShortcuts[digit]);
+                    return;
+                }
+            }
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                state.selectedIndex = Math.min(state.selectedIndex + 1, state.matches.length - 1);
+                renderSearch();
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                state.selectedIndex = Math.max(state.selectedIndex - 1, 0);
+                if (state.selectedIndex == 0) {
+                    scrollToTop();
+                }
+                renderSearch();
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (e.ctrlKey) {
+                    state.searchMode = state.searchMode === 'pending' ? 'all' : 'pending';
+                    document.getElementById('ci-mode').textContent = `Mode: ${state.searchMode === 'pending' ? 'Pending Only' : 'All Records'} (Ctrl+Enter to toggle)`;
+                    state.selectedIndex = 0;
+                    renderSearch();
+                } else if (e.shiftKey) {
+                    showDetails(state.selectedIndex);
+                } else {
+                    toggleCheckIn(state.selectedIndex);
+                }
+            }
+        });
+
+        window.addEventListener('keydown', e => {
+            // Ctrl + K focus search box
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+                e.preventDefault();
+                document.getElementById('search-box').focus();
+                scrollToTop();
+            }
+            // Ctrl + , Settings Dashboard
+            else if ((e.ctrlKey || e.metaKey) && e.key === ',') {
+                e.preventDefault();
+                let dash = document.getElementById('modal-settings-dash');
+                if (dash.classList.contains('hidden')) openSettingsDash();
+                else closeModal('modal-settings-dash');
+            }
+            // Ctrl + J Context Switcher
+            else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'j') {
+                e.preventDefault();
+                openContextSwitcher();
+            }
+            // Ctrl + N Add Note Line
+            else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === '.') {
+                e.preventDefault();
+                openNoteLineDialog();
+            }
+            // Ctrl + E Modify Property
+            else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'e') {
+                e.preventDefault();
+                openModifyPropertyDialog();
+            }
+            // Enter in Note Line modal
+            else if (e.key === 'Enter' && !document.getElementById('modal-note-line').classList.contains('hidden')) {
+                e.preventDefault();
+                saveNoteLine();
+            }
+            // Enter in Edit Property modal
+            else if (e.key === 'Enter' && !document.getElementById('modal-edit-property').classList.contains('hidden')) {
+                e.preventDefault();
+                savePropertyValue();
+            }
+            // Enter in Context Switcher modal
+            else if (e.key === 'Enter' && !document.getElementById('modal-context-switcher').classList.contains('hidden')) {
+                e.preventDefault();
+                switchContextByInput();
+            }
+            // Ctrl + Z / Y
+            else if (e.ctrlKey && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); }
+            else if (e.ctrlKey && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); }
+            else if (e.key === 'Escape') {
+                closeModal('modal');
+                closeModal('modal-note-line');
+                closeModal('modal-edit-property');
+                closeModal('modal-settings-dash');
+                closeModal('modal-context-switcher');
+            }
+        });
+
+        loadConfigUI();
+        if (db.lastSession && db.lastSession.eventId && db.lastSession.contextId) {
+            let ev = db.events.find(e => e.id === db.lastSession.eventId);
+            let ctx = ev?.contexts.find(c => c.id === db.lastSession.contextId);
+            if (ev && ctx) {
+                state.eventId = ev.id;
+                state.contextId = ctx.id;
+                navigate('checkin');
+            } else {
+                navigate('home');
+            }
+        } else {
+            navigate('home');
+        }
+
+        if (db.config.enabled) syncDown();
+
+    </script>
+</body>
+
+</html>
