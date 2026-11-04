@@ -94,6 +94,11 @@
             background: var(--border);
         }
 
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         button.primary {
             background: var(--accent);
             color: #fff;
@@ -123,6 +128,7 @@
             margin-bottom: 1rem;
             border-bottom: 1px solid var(--border);
             padding-bottom: 1rem;
+            flex-wrap: wrap;
         }
 
         .card {
@@ -302,6 +308,85 @@
             background: var(--border);
             border-radius: 4px;
         }
+
+        /* Wheel */
+        .wheel-layout {
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            align-items: flex-start;
+        }
+
+        .wheel-stage {
+            flex: 1 1 420px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .wheel-side {
+            flex: 1 1 340px;
+            min-width: 300px;
+        }
+
+        .wheel-wrap {
+            position: relative;
+            width: 100%;
+            max-width: 520px;
+        }
+
+        #wheel-canvas {
+            width: 100%;
+            height: auto;
+            display: block;
+            border: none;
+            padding: 0;
+            border-radius: 50%;
+        }
+
+        .wheel-pointer {
+            position: absolute;
+            top: -6px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 14px solid transparent;
+            border-right: 14px solid transparent;
+            border-top: 28px solid #fff;
+            z-index: 5;
+            filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+        }
+
+        #wh-winner {
+            min-height: 3.5rem;
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--success);
+            text-align: center;
+            word-break: break-word;
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+            align-items: center;
+        }
+
+        .filter-row input,
+        .filter-row select {
+            padding: 0.5rem 0.6rem;
+            min-width: 0;
+            font-size: 0.95rem;
+        }
+
+        .hist-item {
+            padding: 0.35rem 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.95rem;
+        }
     </style>
 </head>
 
@@ -311,6 +396,8 @@
         <div id="nav" class="hidden">
             <button onclick="navigate('home')">Home</button>
             <button id="nav-context" onclick="navigate('context')" class="hidden">Contexts</button>
+            <button id="nav-checkin" onclick="navigate('checkin')" class="hidden">Check-in</button>
+            <button id="nav-wheel" onclick="navigate('wheel')" class="hidden">Spin Wheel</button>
             <button id="nav-switch-ctx" onclick="openContextSwitcher()" class="hidden">Switch Context (Ctrl+J)</button>
             <button id="nav-settings" onclick="openSettingsDash()">Settings (Ctrl+,)</button>
             <div style="flex: 1"></div>
@@ -392,6 +479,56 @@
                 <span id="ci-stats"></span>
             </div>
         </div>
+
+        <!-- View: Spin the Wheel -->
+        <div id="view-wheel" class="view hidden" style="flex: 1; overflow-y: auto; padding-right: 0.5rem;">
+            <div class="row" style="margin-bottom: 1rem; justify-content: space-between;">
+                <h2 id="wh-title" style="margin: 0;">Spin the Wheel</h2>
+                <span id="wh-count" class="mono" style="font-size: 1.25rem; font-weight: bold; color: var(--accent);"></span>
+            </div>
+            <div class="wheel-layout">
+                <div class="wheel-stage">
+                    <div class="wheel-wrap">
+                        <div class="wheel-pointer"></div>
+                        <canvas id="wheel-canvas" width="900" height="900"></canvas>
+                    </div>
+                    <button id="wh-spin" class="primary" style="font-size: 1.3rem; padding: 0.9rem 3rem;"
+                        onclick="spinWheel()">SPIN (Space)</button>
+                    <div id="wh-winner"></div>
+                </div>
+                <div class="wheel-side">
+                    <div class="card">
+                        <h3>Display Name</h3>
+                        <input type="text" id="wh-display" style="width: 100%" list="wh-fields" autocomplete="off"
+                            placeholder="e.g. {Name} ({Table}.{Seat})" oninput="onWheelDisplayChange()">
+                        <div style="font-size: 0.8rem; color: var(--muted); margin-top: 0.5rem;">
+                            Use <span class="mono">{field_name}</span>; any other text (spaces, dots, etc.) is kept as is.
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h3>Filters (all must match)</h3>
+                        <div class="form-group">
+                            <select id="wh-checked" onchange="onWheelCheckedChange()">
+                                <option value="any">Checked-in: any</option>
+                                <option value="in">Checked-in: only checked in</option>
+                                <option value="out">Checked-in: only NOT checked in</option>
+                            </select>
+                        </div>
+                        <div id="wh-filters"></div>
+                        <button onclick="addWheelFilter()" style="width: 100%;">+ Add Filter</button>
+                        <div style="font-size: 0.8rem; color: var(--muted); margin-top: 0.5rem;">
+                            Numbers are auto-detected for equals, &gt; and &lt;. After each spin the winner gets
+                            <span class="mono">spinned = 1</span> and the filters are recalculated.
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h3>Winners (this session)</h3>
+                        <div id="wh-history" style="color: var(--muted);">None yet.</div>
+                    </div>
+                </div>
+            </div>
+            <datalist id="wh-fields"></datalist>
+        </div>
     </div>
 
     <!-- Details Modal -->
@@ -408,7 +545,7 @@
         </div>
     </div>
 
-    <!-- Add Note Line Dialog (Ctrl+N) -->
+    <!-- Add Note Line Dialog (Ctrl+.) -->
     <div id="modal-note-line" class="modal hidden" onclick="if(event.target===this) closeModal('modal-note-line')">
         <div class="modal-content">
             <h2>Add Note Line</h2>
@@ -475,6 +612,7 @@
                     <div><span class="shortcut-badge">Ctrl+1..9</span> Quick edit mapped property</div>
                     <div><span class="shortcut-badge">Ctrl+J</span> Quick switch context</div>
                     <div><span class="shortcut-badge">Ctrl+,</span> Toggle Settings Dashboard</div>
+                    <div><span class="shortcut-badge">Space</span> Spin the wheel (wheel mode)</div>
                 </div>
             </div>
 
@@ -506,10 +644,14 @@
         let db = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {
             config: { url: 'https://kv.alimad.co', key: '', master: '', enabled: false, autoDelete: false },
             lastSession: null,
-            events: []
+            events: [],
+            deleted: {}
         };
+        if (!db.deleted) db.deleted = {};
+        if (!db.events) db.events = [];
 
         let state = {
+            view: 'home',
             eventId: null,
             contextId: null,
             searchMode: 'pending',
@@ -518,39 +660,165 @@
             history: [],
             historyPtr: -1,
             syncing: false,
-            animating: false
+            animating: false,
+            spinning: false,
+            wheelAngle: 0,
+            wheelHistory: []
         };
+
+        // =====================================================================
+        // Data normalisation & change tracking
+        // =====================================================================
+        function normalizeContext(c) {
+            if (!c.notes) c.notes = {};
+            if (!c.timestamps) c.timestamps = {};
+            if (!c.fieldShortcuts) c.fieldShortcuts = {};
+            if (!c.rowMod) c.rowMod = {};
+            if (!c.checkedIn) c.checkedIn = [];
+            if (!c.mod) c.mod = 0;
+            return c;
+        }
+
+        function normalizeEvents(events) {
+            (events || []).forEach(e => {
+                if (!e.mod) e.mod = 0;
+                if (!e.contexts) e.contexts = [];
+                e.contexts.forEach(normalizeContext);
+            });
+            return events;
+        }
+        normalizeEvents(db.events);
+
+        // Mark a participant (and its context) as modified "now" so merges know which side is newer.
+        function touch(ctx, key) {
+            let t = Date.now();
+            if (!ctx.rowMod) ctx.rowMod = {};
+            if (key !== undefined && key !== null) ctx.rowMod[key] = t;
+            ctx.mod = t;
+        }
+
+        // =====================================================================
+        // Sync (pull -> merge -> push). Never blindly overwrites the remote.
+        // =====================================================================
+        let syncTimer = null;
+        let syncPending = false;
+
+        function syncEnabled() {
+            return db.config.enabled && db.config.key && db.config.master;
+        }
+
+        function setSyncStatus(t) {
+            let el = document.getElementById('sync-status');
+            if (el) el.textContent = t;
+        }
 
         function saveLocal() {
             if (state.eventId && state.contextId) {
                 db.lastSession = { eventId: state.eventId, contextId: state.contextId };
             }
             localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
-            syncUp();
+            scheduleSync();
         }
 
-        async function syncUp() {
-            if (!db.config.enabled || !db.config.key || !db.config.master || state.syncing) return;
-            state.syncing = true;
-            document.getElementById('sync-status').textContent = 'Syncing';
-            try {
-                let url = db.config.url.replace(/\/$/, '');
-                await fetch(`${url}/set`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ key: db.config.key, master: db.config.master, value: db.events })
-                });
-                document.getElementById('sync-status').textContent = 'Synced';
-            } catch (e) {
-                document.getElementById('sync-status').textContent = 'Sync Failed';
-            }
-            state.syncing = false;
+        function persistOnly() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
         }
 
-        async function syncDown() {
-            if (!db.config.enabled || !db.config.key || !db.config.master || state.syncing) return;
+        function scheduleSync() {
+            if (!syncEnabled()) return;
+            clearTimeout(syncTimer);
+            syncTimer = setTimeout(() => sync(), 700);
+        }
+
+        function parseRemote(value) {
+            if (!value) return null;
+            // Legacy format: plain array of events
+            if (Array.isArray(value)) value = { events: value, deleted: {} };
+            if (!value.events) return null;
+            value.deleted = value.deleted || {};
+            normalizeEvents(value.events);
+            return value;
+        }
+
+        function mergeContext(a, b) {
+            let newer = (b.mod || 0) > (a.mod || 0) ? b : a;
+            let out = { ...newer };
+
+            let headers = [...a.headers];
+            b.headers.forEach(h => { if (!headers.includes(h)) headers.push(h); });
+            out.headers = headers;
+
+            let keyCol = a.headers[0];
+            let rowsA = new Map(a.data.map(r => [r[keyCol], r]));
+            let rowsB = new Map(b.data.map(r => [r[keyCol], r]));
+            let modA = a.rowMod || {}, modB = b.rowMod || {};
+
+            let keys = [...rowsA.keys()];
+            rowsB.forEach((_, k) => { if (!rowsA.has(k)) keys.push(k); });
+
+            let data = [], rowMod = {}, notes = {}, timestamps = {}, checkedIn = [];
+            keys.forEach(k => {
+                let inA = rowsA.has(k), inB = rowsB.has(k);
+                let src;
+                if (!inB) src = a;
+                else if (!inA) src = b;
+                else src = (modB[k] || 0) > (modA[k] || 0) ? b : a;
+
+                data.push({ ...(src === a ? rowsA : rowsB).get(k) });
+                rowMod[k] = Math.max(modA[k] || 0, modB[k] || 0);
+                if (src.checkedIn.includes(k)) checkedIn.push(k);
+                if (src.timestamps[k]) timestamps[k] = src.timestamps[k];
+                if (src.notes[k]) notes[k] = src.notes[k];
+            });
+
+            out.data = data;
+            out.rowMod = rowMod;
+            out.notes = notes;
+            out.timestamps = timestamps;
+            out.checkedIn = checkedIn;
+            out.mod = Math.max(a.mod || 0, b.mod || 0);
+            return out;
+        }
+
+        function mergeEvent(a, b) {
+            let newer = (b.mod || 0) > (a.mod || 0) ? b : a;
+            let bMap = new Map(b.contexts.map(c => [c.id, c]));
+            let seen = new Set();
+            let contexts = [];
+            a.contexts.forEach(ca => {
+                seen.add(ca.id);
+                let cb = bMap.get(ca.id);
+                contexts.push(cb ? mergeContext(ca, cb) : ca);
+            });
+            b.contexts.forEach(cb => { if (!seen.has(cb.id)) contexts.push(cb); });
+            return { ...newer, contexts };
+        }
+
+        function mergeState(L, R) {
+            let deleted = { ...(R.deleted || {}) };
+            Object.entries(L.deleted || {}).forEach(([k, v]) => { deleted[k] = Math.max(deleted[k] || 0, v); });
+
+            let rMap = new Map(R.events.map(e => [e.id, e]));
+            let seen = new Set();
+            let events = [];
+            L.events.forEach(le => {
+                seen.add(le.id);
+                if (deleted[le.id]) return;
+                let re = rMap.get(le.id);
+                events.push(re ? mergeEvent(le, re) : le);
+            });
+            R.events.forEach(re => {
+                if (!seen.has(re.id) && !deleted[re.id]) events.push(re);
+            });
+            events.forEach(e => { e.contexts = e.contexts.filter(c => !deleted[c.id]); });
+            return { events, deleted };
+        }
+
+        async function sync() {
+            if (!syncEnabled()) return;
+            if (state.syncing) { syncPending = true; return; }
             state.syncing = true;
-            document.getElementById('sync-status').textContent = 'Syncing';
+            setSyncStatus('Syncing');
             try {
                 let url = db.config.url.replace(/\/$/, '');
                 let res = await fetch(`${url}/get`, {
@@ -558,16 +826,56 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ key: db.config.key, master: db.config.master })
                 });
-                let data = await res.json();
-                if (data.value) {
-                    db.events = data.value;
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify(db));
-                    document.getElementById('sync-status').textContent = 'Synced';
+                let remote = null;
+                if (res.ok) {
+                    let data = await res.json();
+                    remote = parseRemote(data && data.value);
+                } else if (res.status !== 404) {
+                    throw new Error('Pull failed: ' + res.status); // never push if we couldn't read
+                }
+
+                let before = JSON.stringify({ e: db.events, d: db.deleted });
+                let needPush = true;
+                if (remote) {
+                    let merged = mergeState({ events: db.events, deleted: db.deleted || {} }, remote);
+                    db.events = merged.events;
+                    db.deleted = merged.deleted;
+                    needPush = JSON.stringify(merged) !== JSON.stringify(remote);
+                }
+                normalizeEvents(db.events);
+                let after = JSON.stringify({ e: db.events, d: db.deleted });
+                if (before !== after) {
+                    persistOnly();
                     refreshCurrentView();
                 }
-            } catch (e) { }
+
+                if (needPush) {
+                    let setRes = await fetch(`${url}/set`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            key: db.config.key,
+                            master: db.config.master,
+                            value: { events: db.events, deleted: db.deleted }
+                        })
+                    });
+                    if (!setRes.ok) throw new Error('Push failed: ' + setRes.status);
+                }
+                setSyncStatus('Synced');
+            } catch (e) {
+                setSyncStatus('Sync Failed');
+            }
             state.syncing = false;
+            if (syncPending) { syncPending = false; scheduleSync(); }
         }
+
+        function anyModalOpen() {
+            return [...document.querySelectorAll('.modal')].some(m => !m.classList.contains('hidden'));
+        }
+
+        // Periodic pull so several devices stay in step
+        setInterval(() => { if (syncEnabled() && !state.spinning) sync(); }, 20000);
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) sync(); });
 
         function scrollToTop() {
             window.scrollTo({
@@ -577,29 +885,36 @@
             });
         }
 
+        // =====================================================================
+        // Navigation
+        // =====================================================================
+        function setNav(show) {
+            ['nav-context', 'nav-checkin', 'nav-wheel', 'nav-switch-ctx', 'nav-settings'].forEach(id => {
+                document.getElementById(id).classList.toggle('hidden', !show.includes(id));
+            });
+        }
+
         function navigate(view) {
+            if (view === 'wheel' && !getContext()) return;
+            if (view === 'checkin' && !getContext()) return;
+
             document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
             document.getElementById('nav').classList.remove('hidden');
+            state.view = view;
 
             if (view === 'home') {
                 document.getElementById('view-home').classList.remove('hidden');
-                document.getElementById('nav-context').classList.add('hidden');
-                document.getElementById('nav-settings').classList.add('hidden');
-                document.getElementById('nav-switch-ctx').classList.add('hidden');
+                setNav([]);
                 state.eventId = null; state.contextId = null;
                 renderEvents();
             } else if (view === 'context') {
                 document.getElementById('view-context').classList.remove('hidden');
-                document.getElementById('nav-context').classList.remove('hidden');
-                document.getElementById('nav-settings').classList.add('hidden');
-                document.getElementById('nav-switch-ctx').classList.remove('hidden');
+                setNav(['nav-context', 'nav-switch-ctx']);
                 state.contextId = null;
                 renderContexts();
             } else if (view === 'checkin') {
                 document.getElementById('view-checkin').classList.remove('hidden');
-                document.getElementById('nav-settings').classList.remove('hidden');
-                document.getElementById('nav-context').classList.remove('hidden');
-                document.getElementById('nav-switch-ctx').classList.remove('hidden');
+                setNav(['nav-context', 'nav-wheel', 'nav-switch-ctx', 'nav-settings']);
                 let ctx = getContext();
                 document.getElementById('ci-title').textContent = ctx.name;
                 document.getElementById('cfg-autodelete').checked = !!db.config.autoDelete;
@@ -608,11 +923,17 @@
                 saveLocal();
                 renderSearch();
                 setTimeout(() => document.getElementById('search-box').focus(), 50);
+            } else if (view === 'wheel') {
+                document.getElementById('view-wheel').classList.remove('hidden');
+                setNav(['nav-context', 'nav-checkin', 'nav-switch-ctx']);
+                saveLocal();
+                initWheelView();
             }
         }
 
         function refreshCurrentView() {
-            if (state.contextId) renderSearch();
+            if (state.view === 'wheel' && state.contextId) { if (!state.spinning) renderWheel(true); }
+            else if (state.contextId) renderSearch();
             else if (state.eventId) renderContexts();
             else renderEvents();
         }
@@ -629,19 +950,19 @@
             db.config.url = document.getElementById('cfg-url').value;
             db.config.key = document.getElementById('cfg-key').value;
             db.config.master = document.getElementById('cfg-master').value;
-            saveLocal();
-            if (db.config.enabled) syncDown();
+            persistOnly();
+            if (db.config.enabled) sync(); // pulls & merges first, then pushes
         }
 
         function toggleAutoDelete(val) {
             db.config.autoDelete = val;
-            saveLocal();
+            persistOnly();
         }
 
         function addNewEvent() {
             let name = document.getElementById('new-event-name').value.trim();
             if (!name) return;
-            db.events.push({ id: Date.now().toString(), name, contexts: [] });
+            db.events.push({ id: Date.now().toString(), name, contexts: [], mod: Date.now() });
             document.getElementById('new-event-name').value = '';
             saveLocal();
             renderEvents();
@@ -663,17 +984,18 @@
 
         function openEvent(id) { state.eventId = id; navigate('context'); }
         function deleteEvent(id) {
-            if (confirm('Delete event?')) { db.events = db.events.filter(e => e.id !== id); saveLocal(); renderEvents(); }
+            if (confirm('Delete event?')) {
+                db.events = db.events.filter(e => e.id !== id);
+                db.deleted[id] = Date.now();
+                saveLocal();
+                renderEvents();
+            }
         }
 
         function getEvent() { return db.events.find(e => e.id === state.eventId); }
         function getContext() {
             let ctx = getEvent()?.contexts.find(c => c.id === state.contextId);
-            if (ctx) {
-                if (!ctx.notes) ctx.notes = {};
-                if (!ctx.timestamps) ctx.timestamps = {};
-                if (!ctx.fieldShortcuts) ctx.fieldShortcuts = {};
-            }
+            if (ctx) normalizeContext(ctx);
             return ctx;
         }
 
@@ -728,7 +1050,9 @@
                     checkedIn: [],
                     notes: {},
                     timestamps: {},
-                    fieldShortcuts: {}
+                    fieldShortcuts: {},
+                    rowMod: {},
+                    mod: Date.now()
                 });
                 saveLocal();
                 renderContexts();
@@ -736,9 +1060,19 @@
             reader.readAsText(file);
         }
 
-        function openContext(id) { state.contextId = id; navigate('checkin'); }
+        function openContext(id) {
+            state.contextId = id;
+            state.wheelHistory = [];
+            state.wheelAngle = 0;
+            navigate(state.view === 'wheel' ? 'wheel' : 'checkin');
+        }
         function deleteContext(id) {
-            if (confirm('Delete context?')) { getEvent().contexts = getEvent().contexts.filter(c => c.id !== id); saveLocal(); renderContexts(); }
+            if (confirm('Delete context?')) {
+                getEvent().contexts = getEvent().contexts.filter(c => c.id !== id);
+                db.deleted[id] = Date.now();
+                saveLocal();
+                renderContexts();
+            }
         }
 
         function escapeHTML(str) {
@@ -748,7 +1082,7 @@
         function highlight(text, query) {
             let safeText = escapeHTML(text);
             if (!query) return safeText;
-            let safeQuery = escapeHTML(query);
+            let safeQuery = escapeHTML(query).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             let regex = new RegExp(`(${safeQuery})`, 'gi');
             return safeText.replace(regex, '<mark>$1</mark>');
         }
@@ -894,6 +1228,7 @@
                 state.historyPtr++;
             }
 
+            touch(ctx, keyVal);
             saveLocal();
             state.selectedIndex = 0;
             renderSearch();
@@ -912,6 +1247,7 @@
                 if (!ctx.checkedIn.includes(action.key)) ctx.checkedIn.push(action.key);
                 if (action.time) ctx.timestamps[action.key] = action.time;
             }
+            touch(ctx, action.key);
             saveLocal(); renderSearch();
         }
 
@@ -928,6 +1264,7 @@
                 ctx.checkedIn = ctx.checkedIn.filter(k => k !== action.key);
                 delete ctx.timestamps[action.key];
             }
+            touch(ctx, action.key);
             saveLocal(); renderSearch();
         }
 
@@ -950,7 +1287,10 @@
             let noteArea = document.getElementById('modal-note-input');
             noteArea.value = ctx.notes[keyVal] || '';
             noteArea.oninput = () => {
-                ctx.notes[keyVal] = noteArea.value;
+                let c = getContext(); // re-fetch: a background sync may have replaced the objects
+                if (!c) return;
+                c.notes[keyVal] = noteArea.value;
+                touch(c, keyVal);
                 saveLocal();
                 renderSearch();
             };
@@ -967,13 +1307,14 @@
 
         function closeModal(id) {
             document.getElementById(id).classList.add('hidden');
-            if (state.contextId) {
+            if (state.contextId && state.view === 'checkin') {
                 document.getElementById('search-box').focus();
             }
         }
 
-        // --- Note Line Dialog (Ctrl+N) ---
+        // --- Note Line Dialog (Ctrl+.) ---
         function openNoteLineDialog() {
+            if (state.view !== 'checkin') return;
             let match = state.matches[state.selectedIndex];
             if (!match) return;
             let ctx = getContext();
@@ -992,14 +1333,16 @@
             if (line) {
                 let existing = ctx.notes[keyVal] || '';
                 ctx.notes[keyVal] = existing ? (existing + '\n' + line) : line;
+                touch(ctx, keyVal);
                 saveLocal();
                 renderSearch();
             }
             closeModal('modal-note-line');
         }
 
-        // --- Modify Specific Property (Ctrl+E) & Shift+1..9 ---
+        // --- Modify Specific Property (Ctrl+E) & Ctrl+1..9 ---
         function openModifyPropertyDialog(propName) {
+            if (state.view !== 'checkin') return;
             let match = state.matches[state.selectedIndex];
             if (!match) return;
             let ctx = getContext();
@@ -1034,11 +1377,14 @@
         function savePropertyValue() {
             let match = state.matches[state.selectedIndex];
             if (!match) return closeModal('modal-edit-property');
+            let ctx = getContext();
+            let keyVal = match.row[ctx.headers[0]];
             let select = document.getElementById('edit-prop-select');
             let propKey = select.value;
             let newVal = document.getElementById('edit-prop-val-input').value;
 
             match.row[propKey] = newVal;
+            touch(ctx, keyVal);
             saveLocal();
             renderSearch();
             closeModal('modal-edit-property');
@@ -1058,7 +1404,7 @@
                     let row = document.createElement('div');
                     row.className = 'row';
                     row.innerHTML = `
-                    <span class="shortcut-badge" style="width:70px; text-align:center;">Shift+${i}</span>
+                    <span class="shortcut-badge" style="width:70px; text-align:center;">Ctrl+${i}</span>
                     <select id="shortcut-digit-${i}" style="flex:1">
                         <option value="">-- Unassigned --</option>
                         ${ctx.headers.map(h => `<option value="${escapeHTML(h)}" ${h === current ? 'selected' : ''}>${escapeHTML(h)}</option>`).join('')}
@@ -1078,8 +1424,9 @@
                 let val = document.getElementById(`shortcut-digit-${i}`).value;
                 if (val) ctx.fieldShortcuts[i] = val;
                 else delete ctx.fieldShortcuts[i];
-                saveLocal();
             }
+            ctx.mod = Date.now();
+            saveLocal();
         }
 
         function assignNewPropertyToAll() {
@@ -1091,13 +1438,17 @@
 
             if (!ctx.headers.includes(propName)) ctx.headers.push(propName);
             ctx.data.forEach(row => {
-                if (row[propName] === undefined) row[propName] = defaultVal;
+                if (row[propName] === undefined) {
+                    row[propName] = defaultVal;
+                    touch(ctx, row[ctx.headers[0]]);
+                }
             });
+            ctx.mod = Date.now();
 
             document.getElementById('new-prop-name').value = '';
             document.getElementById('new-prop-default').value = '';
             saveLocal();
-            renderSearch();
+            if (state.view === 'checkin') renderSearch();
             openSettingsDash();
         }
 
@@ -1130,6 +1481,278 @@
             } else {
                 alert('Invalid context number.');
             }
+        }
+
+        // =====================================================================
+        // Spin the Wheel
+        // =====================================================================
+        function wheelCfg() {
+            let ctx = getContext();
+            if (!ctx.wheel) {
+                ctx.wheel = {
+                    filters: [{ field: 'spinned', op: 'not exists', value: '' }],
+                    checked: 'any',
+                    display: '{' + ctx.headers[0] + '}'
+                };
+            }
+            return ctx.wheel;
+        }
+
+        function wheelChanged() {
+            let ctx = getContext();
+            ctx.mod = Date.now();
+            saveLocal();
+        }
+
+        function isNum(v) {
+            let s = String(v ?? '').trim();
+            return s !== '' && isFinite(Number(s));
+        }
+
+        // Numbers are auto-detected: compares numerically when both sides are numeric, else as text.
+        function cmpVals(a, b) {
+            if (isNum(a) && isNum(b)) return Number(a) - Number(b);
+            let x = String(a).toLowerCase(), y = String(b).toLowerCase();
+            return x < y ? -1 : x > y ? 1 : 0;
+        }
+
+        function filterMatches(row, f) {
+            let val = String(row[f.field] ?? '').trim();
+            let target = String(f.value ?? '').trim();
+            switch (f.op) {
+                case 'exists': return val !== '';
+                case 'not exists': return val === '';
+                case 'equals': return cmpVals(val, target) === 0 && (val !== '' || target === '');
+                case '>': return val !== '' && cmpVals(val, target) > 0;
+                case '<': return val !== '' && cmpVals(val, target) < 0;
+                case 'contains': return val.toLowerCase().includes(target.toLowerCase());
+            }
+            return true;
+        }
+
+        function wheelEligible() {
+            let ctx = getContext();
+            let cfg = wheelCfg();
+            let keyCol = ctx.headers[0];
+            let active = cfg.filters.filter(f => {
+                if (!f.field) return false;
+                if (f.op === 'exists' || f.op === 'not exists') return true;
+                return String(f.value ?? '').trim() !== '';
+            });
+            return ctx.data.filter(row => {
+                let isIn = ctx.checkedIn.includes(row[keyCol]);
+                if (cfg.checked === 'in' && !isIn) return false;
+                if (cfg.checked === 'out' && isIn) return false;
+                return active.every(f => filterMatches(row, f));
+            });
+        }
+
+        function displayName(row) {
+            let ctx = getContext();
+            let tpl = wheelCfg().display || '{' + ctx.headers[0] + '}';
+            let out = tpl.replace(/\{([^}]+)\}/g, (m, f) => String(row[f.trim()] ?? ''));
+            out = out.trim();
+            return out || String(row[ctx.headers[0]] ?? '');
+        }
+
+        function initWheelView() {
+            let ctx = getContext();
+            let cfg = wheelCfg();
+            document.getElementById('wh-title').textContent = 'Spin the Wheel: ' + ctx.name;
+            document.getElementById('wh-display').value = cfg.display;
+            document.getElementById('wh-checked').value = cfg.checked;
+            document.getElementById('wh-winner').textContent = '';
+            renderWheelFilters();
+            renderWheel(true);
+        }
+
+        function renderWheelFilters() {
+            let cfg = wheelCfg();
+            let box = document.getElementById('wh-filters');
+            box.innerHTML = '';
+            cfg.filters.forEach((f, i) => {
+                let row = document.createElement('div');
+                row.className = 'filter-row';
+                let ops = ['equals', '>', '<', 'exists', 'not exists', 'contains'];
+                let needsVal = !(f.op === 'exists' || f.op === 'not exists');
+                row.innerHTML = `
+                    <input type="text" list="wh-fields" placeholder="field" value="${escapeHTML(f.field)}" style="flex:1.2"
+                        oninput="onFilterChange(${i}, 'field', this.value)">
+                    <select style="flex:1" onchange="onFilterChange(${i}, 'op', this.value, true)">
+                        ${ops.map(o => `<option value="${o}" ${o === f.op ? 'selected' : ''}>${o}</option>`).join('')}
+                    </select>
+                    ${needsVal ? `<input type="text" placeholder="value" value="${escapeHTML(f.value)}" style="flex:1"
+                        oninput="onFilterChange(${i}, 'value', this.value)">` : ''}
+                    <button style="padding:0.5rem 0.8rem" onclick="removeWheelFilter(${i})">x</button>`;
+                box.appendChild(row);
+            });
+        }
+
+        function onFilterChange(i, key, val, rebuild) {
+            if (state.spinning) return;
+            let cfg = wheelCfg();
+            cfg.filters[i][key] = val;
+            wheelChanged();
+            if (rebuild) renderWheelFilters();
+            renderWheel(true);
+        }
+
+        function addWheelFilter() {
+            if (state.spinning) return;
+            wheelCfg().filters.push({ field: '', op: 'equals', value: '' });
+            wheelChanged();
+            renderWheelFilters();
+        }
+
+        function removeWheelFilter(i) {
+            if (state.spinning) return;
+            wheelCfg().filters.splice(i, 1);
+            wheelChanged();
+            renderWheelFilters();
+            renderWheel(true);
+        }
+
+        function onWheelCheckedChange() {
+            if (state.spinning) return;
+            wheelCfg().checked = document.getElementById('wh-checked').value;
+            wheelChanged();
+            renderWheel(true);
+        }
+
+        function onWheelDisplayChange() {
+            if (state.spinning) return;
+            wheelCfg().display = document.getElementById('wh-display').value;
+            wheelChanged();
+            renderWheel(true);
+        }
+
+        function renderWheel(resetAngle) {
+            let ctx = getContext();
+            if (!ctx || state.view !== 'wheel') return;
+            let list = wheelEligible();
+            document.getElementById('wh-count').textContent = `${list.length} / ${ctx.data.length} eligible`;
+            document.getElementById('wh-spin').disabled = state.spinning || list.length === 0;
+
+            let dl = document.getElementById('wh-fields');
+            dl.innerHTML = ctx.headers.concat(ctx.headers.includes('spinned') ? [] : ['spinned'])
+                .map(h => `<option value="${escapeHTML(h)}"></option>`).join('');
+
+            let hist = document.getElementById('wh-history');
+            if (state.wheelHistory.length === 0) hist.textContent = 'None yet.';
+            else hist.innerHTML = state.wheelHistory.map((w, i) =>
+                `<div class="hist-item"><span class="mono" style="color:var(--accent)">${i + 1}.</span> ${escapeHTML(w)}</div>`).join('');
+
+            if (resetAngle) state.wheelAngle = 0;
+            drawWheel(state.wheelAngle, list);
+        }
+
+        function fitText(g, text, maxW) {
+            if (g.measureText(text).width <= maxW) return text;
+            while (text.length > 1 && g.measureText(text + '…').width > maxW) text = text.slice(0, -1);
+            return text + '…';
+        }
+
+        function drawWheel(angle, list) {
+            let canvas = document.getElementById('wheel-canvas');
+            let g = canvas.getContext('2d');
+            let W = canvas.width, cx = W / 2, cy = W / 2, r = W / 2 - 6;
+            g.clearRect(0, 0, W, W);
+            let n = list.length;
+
+            if (n === 0) {
+                g.beginPath(); g.arc(cx, cy, r, 0, Math.PI * 2);
+                g.fillStyle = '#21262d'; g.fill();
+                g.fillStyle = '#8b8b9e'; g.font = '36px Ubuntu, sans-serif';
+                g.textAlign = 'center'; g.textBaseline = 'middle';
+                g.fillText('No eligible participants', cx, cy);
+                return;
+            }
+
+            let arc = Math.PI * 2 / n;
+            g.save();
+            g.translate(cx, cy);
+            g.rotate(angle);
+            for (let i = 0; i < n; i++) {
+                g.beginPath();
+                g.moveTo(0, 0);
+                g.arc(0, 0, r, i * arc, (i + 1) * arc);
+                g.closePath();
+                g.fillStyle = `hsl(${(i * 137.508) % 360}, 55%, ${i % 2 ? 40 : 46}%)`;
+                g.fill();
+                if (n <= 150) { g.strokeStyle = 'rgba(0,0,0,0.35)'; g.lineWidth = 1; g.stroke(); }
+            }
+            if (n <= 60) {
+                let fs = Math.max(14, Math.min(40, Math.floor(r * arc * 0.55)));
+                g.font = `bold ${fs}px Ubuntu, sans-serif`;
+                g.textAlign = 'right'; g.textBaseline = 'middle';
+                g.fillStyle = '#fff';
+                for (let i = 0; i < n; i++) {
+                    g.save();
+                    g.rotate((i + 0.5) * arc);
+                    g.fillText(fitText(g, displayName(list[i]), r * 0.78), r - 20, 0);
+                    g.restore();
+                }
+            }
+            g.restore();
+
+            g.beginPath(); g.arc(cx, cy, 34, 0, Math.PI * 2);
+            g.fillStyle = '#0d1117'; g.fill();
+            g.lineWidth = 6; g.strokeStyle = '#fff'; g.stroke();
+        }
+
+        function randFloat() {
+            let a = new Uint32Array(1);
+            crypto.getRandomValues(a);
+            return a[0] / 4294967296;
+        }
+
+        function spinWheel() {
+            if (state.spinning) return;
+            let list = wheelEligible();
+            if (list.length === 0) return;
+
+            state.spinning = true;
+            document.getElementById('wh-spin').disabled = true;
+            document.getElementById('wh-winner').textContent = '';
+
+            let n = list.length;
+            let arc = Math.PI * 2 / n;
+            let w = Math.floor(randFloat() * n);
+            let jitter = (randFloat() - 0.5) * arc * 0.7;
+            // Segment w centre (plus jitter) must end under the pointer at the top (-90deg)
+            let landing = -Math.PI / 2 - ((w + 0.5) * arc + jitter);
+            let TAU = Math.PI * 2;
+            let start = state.wheelAngle;
+            let delta = (((landing - start) % TAU) + TAU) % TAU + TAU * (6 + Math.floor(randFloat() * 3));
+            let duration = 5500;
+            let t0 = performance.now();
+
+            function frame(now) {
+                let p = Math.min(1, (now - t0) / duration);
+                let eased = 1 - Math.pow(1 - p, 4);
+                state.wheelAngle = start + delta * eased;
+                drawWheel(state.wheelAngle, list);
+                if (p < 1) requestAnimationFrame(frame);
+                else finishSpin(list[w]);
+            }
+            requestAnimationFrame(frame);
+        }
+
+        function finishSpin(row) {
+            let ctx = getContext();
+            let name = displayName(row);
+            let keyVal = row[ctx.headers[0]];
+
+            // Mark as spinned, then recalculate the filters
+            if (!ctx.headers.includes('spinned')) ctx.headers.push('spinned');
+            row.spinned = '1';
+            touch(ctx, keyVal);
+            saveLocal();
+
+            state.spinning = false;
+            state.wheelHistory.push(name);
+            document.getElementById('wh-winner').textContent = name;
+            renderWheel(true);
         }
 
         // --- Keyboard Event Handling ---
@@ -1186,11 +1809,21 @@
         });
 
         window.addEventListener('keydown', e => {
+            let tag = (e.target && e.target.tagName) || '';
+            // Space in wheel mode spins (unless typing / pressing a button)
+            if (state.view === 'wheel' && !anyModalOpen() && (e.key === ' ' || e.code === 'Space') &&
+                !e.ctrlKey && !e.metaKey && !['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(tag)) {
+                e.preventDefault();
+                spinWheel();
+                return;
+            }
             // Ctrl + K focus search box
             if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
                 e.preventDefault();
-                document.getElementById('search-box').focus();
-                scrollToTop();
+                if (state.view === 'checkin') {
+                    document.getElementById('search-box').focus();
+                    scrollToTop();
+                }
             }
             // Ctrl + , Settings Dashboard
             else if ((e.ctrlKey || e.metaKey) && e.key === ',') {
@@ -1204,7 +1837,7 @@
                 e.preventDefault();
                 openContextSwitcher();
             }
-            // Ctrl + N Add Note Line
+            // Ctrl + . Add Note Line
             else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === '.') {
                 e.preventDefault();
                 openNoteLineDialog();
@@ -1229,9 +1862,9 @@
                 e.preventDefault();
                 switchContextByInput();
             }
-            // Ctrl + Z / Y
-            else if (e.ctrlKey && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); }
-            else if (e.ctrlKey && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); }
+            // Ctrl + Z / Y (check-in view only)
+            else if (e.ctrlKey && e.key.toLowerCase() === 'z') { e.preventDefault(); if (state.view === 'checkin') undo(); }
+            else if (e.ctrlKey && e.key.toLowerCase() === 'y') { e.preventDefault(); if (state.view === 'checkin') redo(); }
             else if (e.key === 'Escape') {
                 closeModal('modal');
                 closeModal('modal-note-line');
@@ -1256,7 +1889,7 @@
             navigate('home');
         }
 
-        if (db.config.enabled) syncDown();
+        if (db.config.enabled) sync();
 
     </script>
 </body>
